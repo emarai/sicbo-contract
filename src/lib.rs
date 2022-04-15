@@ -25,12 +25,12 @@ pub struct SicBoResult {
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct SicboContract {
+pub struct Contract {
     house: Balance,
     users: UnorderedMap<AccountId, Account>,
 }
 
-impl Default for SicboContract {
+impl Default for Contract {
     fn default() -> Self {
         Self {
             house: 0,
@@ -40,7 +40,7 @@ impl Default for SicboContract {
 }
 
 #[near_bindgen]
-impl SicboContract {
+impl Contract {
     pub fn deposit(&mut self) -> Balance {
         let account_id = env::predecessor_account_id();
 
@@ -51,7 +51,7 @@ impl SicboContract {
             self.users.insert(&account_id, &user);
             user.deposit
         } else {
-            let user = Account { account_id: account_id.clone(), deposit: deposit};
+            let user = Account { account_id: account_id.clone(), deposit: deposit };
             self.users.insert(&account_id, &user);
             user.deposit
         }
@@ -102,7 +102,21 @@ impl SicboContract {
         SicBoResult {
             account_id: account_id,
             dices: dices,
-            total_winning: total_winning
+            total_winning: total_winning,
+        }
+    }
+
+    pub fn play_roulette(&mut self, bets: HashMap<Bet, U128>) -> RouletteResult {
+        let account_id = env::predecessor_account_id();
+        let mut account = self.users.get(&account_id.to_string()).expect("Account Id does not exist");
+
+        let mut total: u128 = 0;
+        let roulette_spin_result: u8 = roulette_spin();
+        let mut total_winning: u128 = 0;
+        for (bet, balance) in bets {
+            let point = check_point_sicbo(&bet, dices.clone());
+            total += balance.0;
+            total_winning += point as u128 * balance.0;
         }
     }
 }
@@ -114,13 +128,13 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if sum_all >= 4 && sum_all <= 10 {
                 return 1;
             }
-        },
+        }
         "big" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all >= 11 && sum_all <= 17 {
                 return 1;
             }
-        },
+        }
         "double_1" => {
             if dices[0] == dices[1] && dices[0] == 1 {
                 return 10;
@@ -129,7 +143,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             } else if dices[1] == dices[2] && dices[1] == 1 {
                 return 10;
             }
-        },
+        }
         "double_2" => {
             if dices[0] == dices[1] && dices[0] == 2 {
                 return 10;
@@ -138,7 +152,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             } else if dices[1] == dices[2] && dices[1] == 2 {
                 return 10;
             }
-        },
+        }
         "double_3" => {
             if dices[0] == dices[1] && dices[0] == 3 {
                 return 10;
@@ -147,7 +161,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             } else if dices[1] == dices[2] && dices[1] == 3 {
                 return 10;
             }
-        },
+        }
         "double_4" => {
             if dices[0] == dices[1] && dices[0] == 4 {
                 return 10;
@@ -156,7 +170,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             } else if dices[1] == dices[2] && dices[1] == 4 {
                 return 10;
             }
-        },
+        }
         "double_5" => {
             if dices[0] == dices[1] && dices[0] == 5 {
                 return 10;
@@ -165,7 +179,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             } else if dices[1] == dices[2] && dices[1] == 5 {
                 return 10;
             }
-        },
+        }
         "double_6" => {
             if dices[0] == dices[1] && dices[0] == 6 {
                 return 10;
@@ -174,126 +188,126 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             } else if dices[1] == dices[2] && dices[1] == 6 {
                 return 10;
             }
-        },
+        }
         "triple_any" => {
             if dices[0] == dices[1] && dices[0] == dices[2] {
                 return 30;
             }
-        },
+        }
         "triple_1" => {
             if dices[0] == dices[1] && dices[0] == dices[2] && dices[0] == 1 {
                 return 180;
             }
-        },
+        }
         "triple_2" => {
             if dices[0] == dices[1] && dices[0] == dices[2] && dices[0] == 2 {
                 return 180;
             }
-        },
+        }
         "triple_3" => {
             if dices[0] == dices[1] && dices[0] == dices[2] && dices[0] == 3 {
                 return 180;
             }
-        },
+        }
         "triple_4" => {
             if dices[0] == dices[1] && dices[0] == dices[2] && dices[0] == 4 {
                 return 180;
             }
-        },
+        }
         "triple_5" => {
             if dices[0] == dices[1] && dices[0] == dices[2] && dices[0] == 5 {
                 return 180;
             }
-        },
+        }
         "triple_6" => {
             if dices[0] == dices[1] && dices[0] == dices[2] && dices[0] == 6 {
                 return 180;
             }
-        },
+        }
         "sum_4" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 4 {
                 return 62;
             }
-        },
+        }
         "sum_5" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 5 {
                 return 31;
             }
-        },
+        }
         "sum_6" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 6 {
                 return 18;
             }
-        },
+        }
         "sum_7" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 7 {
                 return 12;
             }
-        },
+        }
         "sum_8" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 8 {
                 return 8;
             }
-        },
+        }
         "sum_9" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 9 {
                 return 7;
             }
-        },
+        }
         "sum_10" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 10 {
                 return 6;
             }
-        },
+        }
         "sum_11" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 11 {
                 return 6;
             }
-        },
+        }
         "sum_12" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 12 {
                 return 7;
             }
-        },
+        }
         "sum_13" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 13 {
                 return 8;
             }
-        },
+        }
         "sum_14" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 14 {
                 return 12;
             }
-        },
+        }
         "sum_15" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 15 {
                 return 18;
             }
-        },
+        }
         "sum_16" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 16 {
                 return 31;
             }
-        },
+        }
         "sum_17" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 17 {
                 return 62;
             }
-        },
+        }
         "comb_1_2" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(1);
@@ -306,7 +320,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_1_3" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(1);
@@ -319,7 +333,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_1_4" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(1);
@@ -332,7 +346,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_1_5" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(1);
@@ -345,7 +359,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_1_6" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(1);
@@ -358,7 +372,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_2_3" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(2);
@@ -371,7 +385,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_2_4" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(2);
@@ -384,7 +398,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_2_5" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(2);
@@ -397,7 +411,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_2_6" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(2);
@@ -410,7 +424,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_3_4" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(3);
@@ -423,7 +437,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_3_5" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(3);
@@ -436,7 +450,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_3_6" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(3);
@@ -449,7 +463,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_4_5" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(4);
@@ -462,7 +476,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_4_6" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(4);
@@ -475,7 +489,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_5_6" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(5);
@@ -488,7 +502,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "single_1" => {
             let mut total: u32 = 0;
             for dice in dices {
@@ -497,7 +511,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
                 }
             }
             return total;
-        },
+        }
         "single_2" => {
             let mut total: u32 = 0;
             for dice in dices {
@@ -506,7 +520,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
                 }
             }
             return total;
-        },
+        }
         "single_3" => {
             let mut total: u32 = 0;
             for dice in dices {
@@ -515,7 +529,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
                 }
             }
             return total;
-        },
+        }
         "single_4" => {
             let mut total: u32 = 0;
             for dice in dices {
@@ -524,7 +538,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
                 }
             }
             return total;
-        },
+        }
         "single_5" => {
             let mut total: u32 = 0;
             for dice in dices {
@@ -533,7 +547,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
                 }
             }
             return total;
-        },
+        }
         "single_6" => {
             let mut total: u32 = 0;
             for dice in dices {
@@ -542,12 +556,35 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
                 }
             }
             return total;
-        },
+        }
         _ => {
             return 0;
         }
     }
     return 0;
+}
+
+fn check_point_roulette(bet: &str, roulette_value: u8) -> u32 {
+    let roulette_value_str = roulette_value.to_string();
+    if roulette_value_str == bet {
+        return 35;
+    } else if bet.contains('|') {
+        let mut split = bet.split('|').collect::<Vec<&str>>();
+        let mut diff: i32 = 0;
+        for (pos, num) in split.iter().enumerate() {
+            if pos == 0 {
+                diff += num.parse::<i32>().unwrap();
+            } else if pos == 1 {
+                diff = (diff - num.parse::<i32>().unwrap()).abs();
+            }
+
+            if num
+        }
+        if split.as_str() == roulette_value_str {
+
+        }
+    }
+    0
 }
 
 fn roll_dices() -> Vec<u8> {
@@ -557,6 +594,11 @@ fn roll_dices() -> Vec<u8> {
         dices.push((seed_num % 6 + 1) as u8);
     }
     return dices;
+}
+
+fn roulette_spin() -> u8 {
+    let seed_num = get_random_number(0);
+    return (seed_num % 37) as u8;
 }
 
 fn get_random_number(shift_amount: u32) -> u32 {
