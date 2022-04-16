@@ -568,7 +568,7 @@ fn check_point_roulette(bet: &str, roulette_value: u8) -> u32 {
     let roulette_value_str = roulette_value.to_string();
     if roulette_value_str == bet {
         return 35;
-    } else if bet.contains('|') {
+    } else if bet.contains('|') { // split
         let mut split = bet.split('|').collect::<Vec<&str>>();
         let mut diff: i32 = 0;
         for (pos, num) in split.iter().enumerate() {
@@ -578,10 +578,45 @@ fn check_point_roulette(bet: &str, roulette_value: u8) -> u32 {
                 diff = (diff - num.parse::<i32>().unwrap()).abs();
             }
 
-            if num
-        }
-        if split.as_str() == roulette_value_str {
+            if num == roulette_value_str {
 
+            }
+        }
+    } else if bet == "1st_12" {
+        if roulette_value <= 12 {
+            return 2;
+        }
+    } else if bet == "2nd_12" {
+        if roulette_value <= 24 && roulette_value > 12 {
+            return 2;
+        }
+    } else if bet == "3rd_12" {
+        if roulette_value <= 36 && roulette_value > 24 {
+            return 2;
+        }
+    } else if bet == "low" {
+        if roulette_value <= 18 {
+            return 1;
+        }
+    } else if bet == "high" {
+        if roulette_value > 18 && roulette_value <= 36 {
+            return 1;
+        }
+    } else if bet == "even" {
+        if roulette_value % 2 == 0 {
+            return 1;
+        }
+    } else if bet == "odd"{
+        if roulette_value % 2 == 1 {
+            return 1;
+        }
+    } else if bet == "red" {
+        if vec![1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36].contains(&(roulette_value as i32)) {
+            return 1;
+        }
+    } else if bet == "black" {
+        if !(vec![1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36].contains(&(roulette_value as i32))) {
+            return 1;
         }
     }
     0
