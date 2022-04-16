@@ -23,6 +23,13 @@ pub struct SicBoResult {
     total_winning: Balance,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct RouletteResult {
+    account_id: AccountId,
+    roulette_value: u8,
+    total_winning: Balance,
+}
+
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Contract {
@@ -111,12 +118,27 @@ impl Contract {
         let mut account = self.users.get(&account_id.to_string()).expect("Account Id does not exist");
 
         let mut total: u128 = 0;
-        let roulette_spin_result: u8 = roulette_spin();
+        let roulette_value: u8 = roulette_spin();
         let mut total_winning: u128 = 0;
         for (bet, balance) in bets {
-            let point = check_point_sicbo(&bet, dices.clone());
+            let point = check_point_roulette(&bet, roulette_value);
             total += balance.0;
             total_winning += point as u128 * balance.0;
+        }
+
+        assert!(
+            total <= account.deposit,
+            "Account deposit does not sufficient for the bet"
+        );
+
+        account.deposit = account.deposit - total + total_winning;
+        self.house = self.house + total - total_winning;
+        self.users.insert(&account_id, &account);
+
+        RouletteResult {
+            account_id: account_id,
+            roulette_value: roulette_value,
+            total_winning: total_winning,
         }
     }
 }
@@ -571,16 +593,140 @@ fn check_point_roulette(bet: &str, roulette_value: u8) -> u32 {
     } else if bet.contains('|') { // split
         let mut split = bet.split('|').collect::<Vec<&str>>();
         let mut diff: i32 = 0;
+        let mut count = 0;
+        let mut win = 0;
+        let mut numbers: HashSet<i32> = HashSet::new();
         for (pos, num) in split.iter().enumerate() {
+            count += 1;
             if pos == 0 {
                 diff += num.parse::<i32>().unwrap();
             } else if pos == 1 {
                 diff = (diff - num.parse::<i32>().unwrap()).abs();
             }
 
-            if num == roulette_value_str {
-
+            numbers.insert(num.parse::<i32>().unwrap());
+            if num.to_string() == roulette_value_str {
+                win = 1;
             }
+        }
+
+        if count == 2 {
+            assert!(diff == 3 || diff == 1 || (diff == 2 && numbers.contains(&2) && numbers.contains(&0)), "ERR_SPLIT_NOT_VALID");
+
+            return win * 17;
+        } else if count == 3 {
+            assert!(
+                (numbers.contains(&1) && numbers.contains(&2) && numbers.contains(&3)) ||
+                (numbers.contains(&4) && numbers.contains(&5) && numbers.contains(&6)) ||
+                (numbers.contains(&7) && numbers.contains(&8) && numbers.contains(&9)) ||
+                (numbers.contains(&10) && numbers.contains(&11) && numbers.contains(&12)) ||
+                (numbers.contains(&13) && numbers.contains(&14) && numbers.contains(&15)) ||
+                (numbers.contains(&16) && numbers.contains(&17) && numbers.contains(&18)) ||
+                (numbers.contains(&19) && numbers.contains(&20) && numbers.contains(&21)) ||
+                (numbers.contains(&22) && numbers.contains(&23) && numbers.contains(&24)) ||
+                (numbers.contains(&25) && numbers.contains(&26) && numbers.contains(&27)) ||
+                (numbers.contains(&28) && numbers.contains(&29) && numbers.contains(&30)) ||
+                (numbers.contains(&31) && numbers.contains(&32) && numbers.contains(&33)) ||
+                (numbers.contains(&34) && numbers.contains(&35) && numbers.contains(&36)),
+                "ERR_STREET_NOT_VALID"
+            );
+
+            return win * 11;
+        } else if count == 4 {
+            assert!(
+                (numbers.contains(&1) && numbers.contains(&2) && numbers.contains(&4) && numbers.contains(&5)) ||
+                (numbers.contains(&4) && numbers.contains(&5) && numbers.contains(&7) && numbers.contains(&8)) ||
+                (numbers.contains(&7) && numbers.contains(&8) && numbers.contains(&10) && numbers.contains(&11)) ||
+                (numbers.contains(&10) && numbers.contains(&11) && numbers.contains(&13) && numbers.contains(&14)) ||
+                (numbers.contains(&13) && numbers.contains(&14) && numbers.contains(&16) && numbers.contains(&17)) ||
+                (numbers.contains(&16) && numbers.contains(&17) && numbers.contains(&19) && numbers.contains(&20)) ||
+                (numbers.contains(&19) && numbers.contains(&20) && numbers.contains(&22) && numbers.contains(&23)) ||
+                (numbers.contains(&22) && numbers.contains(&23) && numbers.contains(&25) && numbers.contains(&26)) ||
+                (numbers.contains(&25) && numbers.contains(&26) && numbers.contains(&28) && numbers.contains(&29)) ||
+                (numbers.contains(&28) && numbers.contains(&29) && numbers.contains(&31) && numbers.contains(&32)) ||
+                (numbers.contains(&31) && numbers.contains(&32) && numbers.contains(&34) && numbers.contains(&35)) ||
+                (numbers.contains(&2) && numbers.contains(&5) && numbers.contains(&3) && numbers.contains(&6)) ||
+                (numbers.contains(&5) && numbers.contains(&6) && numbers.contains(&8) && numbers.contains(&9)) ||
+                (numbers.contains(&8) && numbers.contains(&9) && numbers.contains(&11) && numbers.contains(&12)) ||
+                (numbers.contains(&11) && numbers.contains(&12) && numbers.contains(&14) && numbers.contains(&15)) ||
+                (numbers.contains(&14) && numbers.contains(&15) && numbers.contains(&17) && numbers.contains(&18)) ||
+                (numbers.contains(&17) && numbers.contains(&18) && numbers.contains(&20) && numbers.contains(&21)) ||
+                (numbers.contains(&20) && numbers.contains(&21) && numbers.contains(&23) && numbers.contains(&24)) ||
+                (numbers.contains(&23) && numbers.contains(&24) && numbers.contains(&26) && numbers.contains(&27)) ||
+                (numbers.contains(&26) && numbers.contains(&27) && numbers.contains(&29) && numbers.contains(&30)) ||
+                (numbers.contains(&29) && numbers.contains(&30) && numbers.contains(&32) && numbers.contains(&33)) ||
+                (numbers.contains(&32) && numbers.contains(&33) && numbers.contains(&35) && numbers.contains(&36)),
+                "ERR_CORNER_NOT_VALID"
+            );
+
+            return win * 8;
+        } else if count == 6 {
+            assert!(
+                (numbers.contains(&1) && numbers.contains(&2) && numbers.contains(&3) && numbers.contains(&4) && numbers.contains(&5) && numbers.contains(&6)) ||
+                (numbers.contains(&7) && numbers.contains(&8) && numbers.contains(&9) && numbers.contains(&4) && numbers.contains(&5) && numbers.contains(&6)) ||
+                (numbers.contains(&7) && numbers.contains(&8) && numbers.contains(&9) && numbers.contains(&10) && numbers.contains(&11) && numbers.contains(&12)) ||
+                (numbers.contains(&13) && numbers.contains(&14) && numbers.contains(&15) && numbers.contains(&10) && numbers.contains(&11) && numbers.contains(&12)) ||
+                (numbers.contains(&13) && numbers.contains(&14) && numbers.contains(&15) && numbers.contains(&16) && numbers.contains(&17) && numbers.contains(&18)) ||
+                (numbers.contains(&19) && numbers.contains(&20) && numbers.contains(&21) && numbers.contains(&16) && numbers.contains(&17) && numbers.contains(&18)) ||
+                (numbers.contains(&19) && numbers.contains(&20) && numbers.contains(&21) && numbers.contains(&22) && numbers.contains(&23) && numbers.contains(&24)) ||
+                (numbers.contains(&25) && numbers.contains(&26) && numbers.contains(&27) && numbers.contains(&22) && numbers.contains(&23) && numbers.contains(&24)) ||
+                (numbers.contains(&25) && numbers.contains(&26) && numbers.contains(&27) && numbers.contains(&28) && numbers.contains(&29) && numbers.contains(&30)) ||
+                (numbers.contains(&31) && numbers.contains(&32) && numbers.contains(&33) && numbers.contains(&28) && numbers.contains(&29) && numbers.contains(&30)) ||
+                (numbers.contains(&31) && numbers.contains(&32) && numbers.contains(&33) && numbers.contains(&34) && numbers.contains(&35) && numbers.contains(&36)),
+                "ERR_SIX_LINE_NOT_VALID"
+            );
+
+            return win * 5;
+        } else if count == 12 {
+            assert!(
+                (
+                    numbers.contains(&1) &&
+                    numbers.contains(&4) &&
+                    numbers.contains(&7) &&
+                    numbers.contains(&10) &&
+                    numbers.contains(&13) &&
+                    numbers.contains(&16) &&
+                    numbers.contains(&19) &&
+                    numbers.contains(&22) &&
+                    numbers.contains(&25) &&
+                    numbers.contains(&28) &&
+                    numbers.contains(&31) &&
+                    numbers.contains(&34)
+                ) ||
+                (
+                    numbers.contains(&2) &&
+                    numbers.contains(&5) &&
+                    numbers.contains(&8) &&
+                    numbers.contains(&11) &&
+                    numbers.contains(&14) &&
+                    numbers.contains(&17) &&
+                    numbers.contains(&20) &&
+                    numbers.contains(&23) &&
+                    numbers.contains(&26) &&
+                    numbers.contains(&29) &&
+                    numbers.contains(&32) &&
+                    numbers.contains(&35)
+                ) ||
+                (
+                    numbers.contains(&3) &&
+                    numbers.contains(&6) &&
+                    numbers.contains(&9) &&
+                    numbers.contains(&12) &&
+                    numbers.contains(&15) &&
+                    numbers.contains(&18) &&
+                    numbers.contains(&21) &&
+                    numbers.contains(&24) &&
+                    numbers.contains(&27) &&
+                    numbers.contains(&30) &&
+                    numbers.contains(&33) &&
+                    numbers.contains(&36)
+                ),
+                "ERR_COLUMN_BET_NOT_VALID"
+            );
+
+            return win * 2;
+        } else {
+            return 0;
         }
     } else if bet == "1st_12" {
         if roulette_value <= 12 {
@@ -615,7 +761,7 @@ fn check_point_roulette(bet: &str, roulette_value: u8) -> u32 {
             return 1;
         }
     } else if bet == "black" {
-        if !(vec![1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36].contains(&(roulette_value as i32))) {
+        if vec![2,4,6,8,10,11,13,15,17,20,22,24,26,28,29,31,33,35].contains(&(roulette_value as i32)) {
             return 1;
         }
     }
