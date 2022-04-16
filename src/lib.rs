@@ -23,14 +23,21 @@ pub struct SicBoResult {
     total_winning: Balance,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct RouletteResult {
+    account_id: AccountId,
+    roulette_value: u8,
+    total_winning: Balance,
+}
+
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct SicboContract {
+pub struct Contract {
     house: Balance,
     users: UnorderedMap<AccountId, Account>,
 }
 
-impl Default for SicboContract {
+impl Default for Contract {
     fn default() -> Self {
         Self {
             house: 0,
@@ -40,7 +47,7 @@ impl Default for SicboContract {
 }
 
 #[near_bindgen]
-impl SicboContract {
+impl Contract {
     pub fn deposit(&mut self) -> Balance {
         let account_id = env::predecessor_account_id();
 
@@ -51,7 +58,7 @@ impl SicboContract {
             self.users.insert(&account_id, &user);
             user.deposit
         } else {
-            let user = Account { account_id: account_id.clone(), deposit: deposit};
+            let user = Account { account_id: account_id.clone(), deposit: deposit };
             self.users.insert(&account_id, &user);
             user.deposit
         }
@@ -102,7 +109,36 @@ impl SicboContract {
         SicBoResult {
             account_id: account_id,
             dices: dices,
-            total_winning: total_winning
+            total_winning: total_winning,
+        }
+    }
+
+    pub fn play_roulette(&mut self, bets: HashMap<Bet, U128>) -> RouletteResult {
+        let account_id = env::predecessor_account_id();
+        let mut account = self.users.get(&account_id.to_string()).expect("Account Id does not exist");
+
+        let mut total: u128 = 0;
+        let roulette_value: u8 = roulette_spin();
+        let mut total_winning: u128 = 0;
+        for (bet, balance) in bets {
+            let point = check_point_roulette(&bet, roulette_value);
+            total += balance.0;
+            total_winning += point as u128 * balance.0;
+        }
+
+        assert!(
+            total <= account.deposit,
+            "Account deposit does not sufficient for the bet"
+        );
+
+        account.deposit = account.deposit - total + total_winning;
+        self.house = self.house + total - total_winning;
+        self.users.insert(&account_id, &account);
+
+        RouletteResult {
+            account_id: account_id,
+            roulette_value: roulette_value,
+            total_winning: total_winning,
         }
     }
 }
@@ -114,13 +150,13 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if sum_all >= 4 && sum_all <= 10 {
                 return 1;
             }
-        },
+        }
         "big" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all >= 11 && sum_all <= 17 {
                 return 1;
             }
-        },
+        }
         "double_1" => {
             if dices[0] == dices[1] && dices[0] == 1 {
                 return 10;
@@ -129,7 +165,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             } else if dices[1] == dices[2] && dices[1] == 1 {
                 return 10;
             }
-        },
+        }
         "double_2" => {
             if dices[0] == dices[1] && dices[0] == 2 {
                 return 10;
@@ -138,7 +174,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             } else if dices[1] == dices[2] && dices[1] == 2 {
                 return 10;
             }
-        },
+        }
         "double_3" => {
             if dices[0] == dices[1] && dices[0] == 3 {
                 return 10;
@@ -147,7 +183,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             } else if dices[1] == dices[2] && dices[1] == 3 {
                 return 10;
             }
-        },
+        }
         "double_4" => {
             if dices[0] == dices[1] && dices[0] == 4 {
                 return 10;
@@ -156,7 +192,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             } else if dices[1] == dices[2] && dices[1] == 4 {
                 return 10;
             }
-        },
+        }
         "double_5" => {
             if dices[0] == dices[1] && dices[0] == 5 {
                 return 10;
@@ -165,7 +201,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             } else if dices[1] == dices[2] && dices[1] == 5 {
                 return 10;
             }
-        },
+        }
         "double_6" => {
             if dices[0] == dices[1] && dices[0] == 6 {
                 return 10;
@@ -174,126 +210,126 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             } else if dices[1] == dices[2] && dices[1] == 6 {
                 return 10;
             }
-        },
+        }
         "triple_any" => {
             if dices[0] == dices[1] && dices[0] == dices[2] {
                 return 30;
             }
-        },
+        }
         "triple_1" => {
             if dices[0] == dices[1] && dices[0] == dices[2] && dices[0] == 1 {
                 return 180;
             }
-        },
+        }
         "triple_2" => {
             if dices[0] == dices[1] && dices[0] == dices[2] && dices[0] == 2 {
                 return 180;
             }
-        },
+        }
         "triple_3" => {
             if dices[0] == dices[1] && dices[0] == dices[2] && dices[0] == 3 {
                 return 180;
             }
-        },
+        }
         "triple_4" => {
             if dices[0] == dices[1] && dices[0] == dices[2] && dices[0] == 4 {
                 return 180;
             }
-        },
+        }
         "triple_5" => {
             if dices[0] == dices[1] && dices[0] == dices[2] && dices[0] == 5 {
                 return 180;
             }
-        },
+        }
         "triple_6" => {
             if dices[0] == dices[1] && dices[0] == dices[2] && dices[0] == 6 {
                 return 180;
             }
-        },
+        }
         "sum_4" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 4 {
                 return 62;
             }
-        },
+        }
         "sum_5" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 5 {
                 return 31;
             }
-        },
+        }
         "sum_6" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 6 {
                 return 18;
             }
-        },
+        }
         "sum_7" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 7 {
                 return 12;
             }
-        },
+        }
         "sum_8" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 8 {
                 return 8;
             }
-        },
+        }
         "sum_9" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 9 {
                 return 7;
             }
-        },
+        }
         "sum_10" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 10 {
                 return 6;
             }
-        },
+        }
         "sum_11" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 11 {
                 return 6;
             }
-        },
+        }
         "sum_12" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 12 {
                 return 7;
             }
-        },
+        }
         "sum_13" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 13 {
                 return 8;
             }
-        },
+        }
         "sum_14" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 14 {
                 return 12;
             }
-        },
+        }
         "sum_15" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 15 {
                 return 18;
             }
-        },
+        }
         "sum_16" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 16 {
                 return 31;
             }
-        },
+        }
         "sum_17" => {
             let sum_all: u8 = dices.iter().sum();
             if sum_all == 17 {
                 return 62;
             }
-        },
+        }
         "comb_1_2" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(1);
@@ -306,7 +342,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_1_3" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(1);
@@ -319,7 +355,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_1_4" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(1);
@@ -332,7 +368,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_1_5" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(1);
@@ -345,7 +381,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_1_6" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(1);
@@ -358,7 +394,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_2_3" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(2);
@@ -371,7 +407,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_2_4" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(2);
@@ -384,7 +420,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_2_5" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(2);
@@ -397,7 +433,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_2_6" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(2);
@@ -410,7 +446,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_3_4" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(3);
@@ -423,7 +459,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_3_5" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(3);
@@ -436,7 +472,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_3_6" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(3);
@@ -449,7 +485,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_4_5" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(4);
@@ -462,7 +498,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_4_6" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(4);
@@ -475,7 +511,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "comb_5_6" => {
             let mut cond: HashSet<u8> = HashSet::new();
             cond.insert(5);
@@ -488,7 +524,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
             if cond.is_empty() {
                 return 6;
             }
-        },
+        }
         "single_1" => {
             let mut total: u32 = 0;
             for dice in dices {
@@ -497,7 +533,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
                 }
             }
             return total;
-        },
+        }
         "single_2" => {
             let mut total: u32 = 0;
             for dice in dices {
@@ -506,7 +542,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
                 }
             }
             return total;
-        },
+        }
         "single_3" => {
             let mut total: u32 = 0;
             for dice in dices {
@@ -515,7 +551,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
                 }
             }
             return total;
-        },
+        }
         "single_4" => {
             let mut total: u32 = 0;
             for dice in dices {
@@ -524,7 +560,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
                 }
             }
             return total;
-        },
+        }
         "single_5" => {
             let mut total: u32 = 0;
             for dice in dices {
@@ -533,7 +569,7 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
                 }
             }
             return total;
-        },
+        }
         "single_6" => {
             let mut total: u32 = 0;
             for dice in dices {
@@ -542,12 +578,194 @@ fn check_point_sicbo(bet: &str, dices: Vec<u8>) -> u32 {
                 }
             }
             return total;
-        },
+        }
         _ => {
             return 0;
         }
     }
     return 0;
+}
+
+fn check_point_roulette(bet: &str, roulette_value: u8) -> u32 {
+    let roulette_value_str = roulette_value.to_string();
+    if roulette_value_str == bet {
+        return 35;
+    } else if bet.contains('|') { // split
+        let mut split = bet.split('|').collect::<Vec<&str>>();
+        let mut diff: i32 = 0;
+        let mut count = 0;
+        let mut win = 0;
+        let mut numbers: HashSet<i32> = HashSet::new();
+        for (pos, num) in split.iter().enumerate() {
+            count += 1;
+            if pos == 0 {
+                diff += num.parse::<i32>().unwrap();
+            } else if pos == 1 {
+                diff = (diff - num.parse::<i32>().unwrap()).abs();
+            }
+
+            numbers.insert(num.parse::<i32>().unwrap());
+            if num.to_string() == roulette_value_str {
+                win = 1;
+            }
+        }
+
+        if count == 2 {
+            assert!(diff == 3 || diff == 1 || (diff == 2 && numbers.contains(&2) && numbers.contains(&0)), "ERR_SPLIT_NOT_VALID");
+
+            return win * 17;
+        } else if count == 3 {
+            assert!(
+                (numbers.contains(&1) && numbers.contains(&2) && numbers.contains(&3)) ||
+                (numbers.contains(&4) && numbers.contains(&5) && numbers.contains(&6)) ||
+                (numbers.contains(&7) && numbers.contains(&8) && numbers.contains(&9)) ||
+                (numbers.contains(&10) && numbers.contains(&11) && numbers.contains(&12)) ||
+                (numbers.contains(&13) && numbers.contains(&14) && numbers.contains(&15)) ||
+                (numbers.contains(&16) && numbers.contains(&17) && numbers.contains(&18)) ||
+                (numbers.contains(&19) && numbers.contains(&20) && numbers.contains(&21)) ||
+                (numbers.contains(&22) && numbers.contains(&23) && numbers.contains(&24)) ||
+                (numbers.contains(&25) && numbers.contains(&26) && numbers.contains(&27)) ||
+                (numbers.contains(&28) && numbers.contains(&29) && numbers.contains(&30)) ||
+                (numbers.contains(&31) && numbers.contains(&32) && numbers.contains(&33)) ||
+                (numbers.contains(&34) && numbers.contains(&35) && numbers.contains(&36)),
+                "ERR_STREET_NOT_VALID"
+            );
+
+            return win * 11;
+        } else if count == 4 {
+            assert!(
+                (numbers.contains(&1) && numbers.contains(&2) && numbers.contains(&4) && numbers.contains(&5)) ||
+                (numbers.contains(&4) && numbers.contains(&5) && numbers.contains(&7) && numbers.contains(&8)) ||
+                (numbers.contains(&7) && numbers.contains(&8) && numbers.contains(&10) && numbers.contains(&11)) ||
+                (numbers.contains(&10) && numbers.contains(&11) && numbers.contains(&13) && numbers.contains(&14)) ||
+                (numbers.contains(&13) && numbers.contains(&14) && numbers.contains(&16) && numbers.contains(&17)) ||
+                (numbers.contains(&16) && numbers.contains(&17) && numbers.contains(&19) && numbers.contains(&20)) ||
+                (numbers.contains(&19) && numbers.contains(&20) && numbers.contains(&22) && numbers.contains(&23)) ||
+                (numbers.contains(&22) && numbers.contains(&23) && numbers.contains(&25) && numbers.contains(&26)) ||
+                (numbers.contains(&25) && numbers.contains(&26) && numbers.contains(&28) && numbers.contains(&29)) ||
+                (numbers.contains(&28) && numbers.contains(&29) && numbers.contains(&31) && numbers.contains(&32)) ||
+                (numbers.contains(&31) && numbers.contains(&32) && numbers.contains(&34) && numbers.contains(&35)) ||
+                (numbers.contains(&2) && numbers.contains(&5) && numbers.contains(&3) && numbers.contains(&6)) ||
+                (numbers.contains(&5) && numbers.contains(&6) && numbers.contains(&8) && numbers.contains(&9)) ||
+                (numbers.contains(&8) && numbers.contains(&9) && numbers.contains(&11) && numbers.contains(&12)) ||
+                (numbers.contains(&11) && numbers.contains(&12) && numbers.contains(&14) && numbers.contains(&15)) ||
+                (numbers.contains(&14) && numbers.contains(&15) && numbers.contains(&17) && numbers.contains(&18)) ||
+                (numbers.contains(&17) && numbers.contains(&18) && numbers.contains(&20) && numbers.contains(&21)) ||
+                (numbers.contains(&20) && numbers.contains(&21) && numbers.contains(&23) && numbers.contains(&24)) ||
+                (numbers.contains(&23) && numbers.contains(&24) && numbers.contains(&26) && numbers.contains(&27)) ||
+                (numbers.contains(&26) && numbers.contains(&27) && numbers.contains(&29) && numbers.contains(&30)) ||
+                (numbers.contains(&29) && numbers.contains(&30) && numbers.contains(&32) && numbers.contains(&33)) ||
+                (numbers.contains(&32) && numbers.contains(&33) && numbers.contains(&35) && numbers.contains(&36)),
+                "ERR_CORNER_NOT_VALID"
+            );
+
+            return win * 8;
+        } else if count == 6 {
+            assert!(
+                (numbers.contains(&1) && numbers.contains(&2) && numbers.contains(&3) && numbers.contains(&4) && numbers.contains(&5) && numbers.contains(&6)) ||
+                (numbers.contains(&7) && numbers.contains(&8) && numbers.contains(&9) && numbers.contains(&4) && numbers.contains(&5) && numbers.contains(&6)) ||
+                (numbers.contains(&7) && numbers.contains(&8) && numbers.contains(&9) && numbers.contains(&10) && numbers.contains(&11) && numbers.contains(&12)) ||
+                (numbers.contains(&13) && numbers.contains(&14) && numbers.contains(&15) && numbers.contains(&10) && numbers.contains(&11) && numbers.contains(&12)) ||
+                (numbers.contains(&13) && numbers.contains(&14) && numbers.contains(&15) && numbers.contains(&16) && numbers.contains(&17) && numbers.contains(&18)) ||
+                (numbers.contains(&19) && numbers.contains(&20) && numbers.contains(&21) && numbers.contains(&16) && numbers.contains(&17) && numbers.contains(&18)) ||
+                (numbers.contains(&19) && numbers.contains(&20) && numbers.contains(&21) && numbers.contains(&22) && numbers.contains(&23) && numbers.contains(&24)) ||
+                (numbers.contains(&25) && numbers.contains(&26) && numbers.contains(&27) && numbers.contains(&22) && numbers.contains(&23) && numbers.contains(&24)) ||
+                (numbers.contains(&25) && numbers.contains(&26) && numbers.contains(&27) && numbers.contains(&28) && numbers.contains(&29) && numbers.contains(&30)) ||
+                (numbers.contains(&31) && numbers.contains(&32) && numbers.contains(&33) && numbers.contains(&28) && numbers.contains(&29) && numbers.contains(&30)) ||
+                (numbers.contains(&31) && numbers.contains(&32) && numbers.contains(&33) && numbers.contains(&34) && numbers.contains(&35) && numbers.contains(&36)),
+                "ERR_SIX_LINE_NOT_VALID"
+            );
+
+            return win * 5;
+        } else if count == 12 {
+            assert!(
+                (
+                    numbers.contains(&1) &&
+                    numbers.contains(&4) &&
+                    numbers.contains(&7) &&
+                    numbers.contains(&10) &&
+                    numbers.contains(&13) &&
+                    numbers.contains(&16) &&
+                    numbers.contains(&19) &&
+                    numbers.contains(&22) &&
+                    numbers.contains(&25) &&
+                    numbers.contains(&28) &&
+                    numbers.contains(&31) &&
+                    numbers.contains(&34)
+                ) ||
+                (
+                    numbers.contains(&2) &&
+                    numbers.contains(&5) &&
+                    numbers.contains(&8) &&
+                    numbers.contains(&11) &&
+                    numbers.contains(&14) &&
+                    numbers.contains(&17) &&
+                    numbers.contains(&20) &&
+                    numbers.contains(&23) &&
+                    numbers.contains(&26) &&
+                    numbers.contains(&29) &&
+                    numbers.contains(&32) &&
+                    numbers.contains(&35)
+                ) ||
+                (
+                    numbers.contains(&3) &&
+                    numbers.contains(&6) &&
+                    numbers.contains(&9) &&
+                    numbers.contains(&12) &&
+                    numbers.contains(&15) &&
+                    numbers.contains(&18) &&
+                    numbers.contains(&21) &&
+                    numbers.contains(&24) &&
+                    numbers.contains(&27) &&
+                    numbers.contains(&30) &&
+                    numbers.contains(&33) &&
+                    numbers.contains(&36)
+                ),
+                "ERR_COLUMN_BET_NOT_VALID"
+            );
+
+            return win * 2;
+        } else {
+            return 0;
+        }
+    } else if bet == "1st_12" {
+        if roulette_value <= 12 {
+            return 2;
+        }
+    } else if bet == "2nd_12" {
+        if roulette_value <= 24 && roulette_value > 12 {
+            return 2;
+        }
+    } else if bet == "3rd_12" {
+        if roulette_value <= 36 && roulette_value > 24 {
+            return 2;
+        }
+    } else if bet == "low" {
+        if roulette_value <= 18 {
+            return 1;
+        }
+    } else if bet == "high" {
+        if roulette_value > 18 && roulette_value <= 36 {
+            return 1;
+        }
+    } else if bet == "even" {
+        if roulette_value % 2 == 0 {
+            return 1;
+        }
+    } else if bet == "odd"{
+        if roulette_value % 2 == 1 {
+            return 1;
+        }
+    } else if bet == "red" {
+        if vec![1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36].contains(&(roulette_value as i32)) {
+            return 1;
+        }
+    } else if bet == "black" {
+        if vec![2,4,6,8,10,11,13,15,17,20,22,24,26,28,29,31,33,35].contains(&(roulette_value as i32)) {
+            return 1;
+        }
+    }
+    0
 }
 
 fn roll_dices() -> Vec<u8> {
@@ -557,6 +775,11 @@ fn roll_dices() -> Vec<u8> {
         dices.push((seed_num % 6 + 1) as u8);
     }
     return dices;
+}
+
+fn roulette_spin() -> u8 {
+    let seed_num = get_random_number(0);
+    return (seed_num % 37) as u8;
 }
 
 fn get_random_number(shift_amount: u32) -> u32 {
