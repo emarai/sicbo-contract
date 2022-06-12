@@ -136,9 +136,23 @@ impl Contract {
         self.users.insert(&account_id, &account);
 
         RouletteResult {
-            account_id: account_id,
-            roulette_value: roulette_value,
-            total_winning: total_winning,
+            account_id,
+            roulette_value,
+            total_winning,
+        }
+    }
+
+    pub fn play_dice(&mut self, roll_under: u8, bet: U128) -> DiceResult {
+        assert!(roll_under > 1 && roll_under < 97, "roll_under guess is not at the valid range");
+        let account_id = env::predecessor_account_id();
+        let mut account = self.users.get(&account_id.to_string()).expect("Account Id does not exist");
+
+        assert!(bet <= account.deposit, "Account deposit does not sufficient for the bet");
+
+        let mut total: u128 = 0;
+        let dice_value: u8 = dice_100_roll();
+        if dice_value < roll_under {
+            let times: f64 = 98.50/(roll_under-1);
         }
     }
 }
@@ -780,6 +794,11 @@ fn roll_dices() -> Vec<u8> {
 fn roulette_spin() -> u8 {
     let seed_num = get_random_number(0);
     return (seed_num % 37) as u8;
+}
+
+fn dice_100_roll() -> u8 {
+    let seed_num = get_random_number(0);
+    return (seed_num % 100) as u8;
 }
 
 fn get_random_number(shift_amount: u32) -> u32 {
